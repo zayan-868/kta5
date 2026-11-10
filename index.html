@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kochi Open World - GTA Miniature Exploration</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0a0c10;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #ui-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Top Left: Quick Travel & Toolbar */
+    .top-toolbar {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      pointer-events: auto;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      max-width: calc(100vw - 28px);
+    }
+
+    .brand-pill {
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: 1px;
+      color: #f59e0b;
+      padding-right: 8px;
+      border-right: 1px solid rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .teleport-select {
+      background: rgba(30, 41, 59, 0.9);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .teleport-select option {
+      background: #0f172a;
+      color: #ffffff;
+    }
+
+    .preset-btn-group {
+      display: flex;
+      gap: 4px;
+    }
+
+    .preset-btn {
+      background: rgba(30, 41, 59, 0.6);
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .preset-btn.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+    }
+
+    .toolbar-btn {
+      background: rgba(30, 41, 59, 0.7);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.2s ease;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+    }
+
+    /* Top Right: Desktop Controls Card */
+    .controls-card {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      font-size: 11px;
+      line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      max-width: 230px;
+    }
+
+    .controls-card h4 {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #38bdf8;
+      margin-bottom: 4px;
+    }
+
+    .key-badge {
+      display: inline-block;
+      background: #334155;
+      color: #f8fafc;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-family: monospace;
+      font-size: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Top Center: Location Banner */
+    .location-banner {
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+      border: 1px solid #f59e0b;
+      padding: 12px 28px;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.25);
+      text-align: center;
+      transition: top 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+
+    .location-banner.visible {
+      top: 24px;
+    }
+
+    .location-badge {
+      font-size: 10px;
+      font-weight: 800;
+      color: #f59e0b;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .location-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: 1px;
+    }
+
+    .location-sub {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* Radio Station Notification Pill */
+    .radio-pill {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-30px);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #06b6d4;
+      padding: 8px 18px;
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transition: all 0.4s ease;
+      box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+      pointer-events: none;
+    }
+
+    .radio-pill.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Center Interaction Prompt */
+    .interaction-prompt {
+      position: absolute;
+      bottom: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      color: #ffffff;
+      padding: 8px 20px;
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.8px;
+      border: 1px solid rgba(56, 189, 248, 0.7);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 15px rgba(56, 189, 248, 0.3);
+      display: none;
+      animation: pulse 1.5s infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      from { transform: translateX(-50%) scale(1); }
+      to { transform: translateX(-50%) scale(1.04); }
+    }
+
+    .center-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* Bottom Left: Mini-Map Radar */
+    .radar-wrapper {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 160px;
+      height: 160px;
+      filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
+      pointer-events: none;
+    }
+
+    #minimap-canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    /* Bottom Right: Speedometer */
+    .speedometer-container {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 12px 18px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      min-width: 140px;
+      pointer-events: none;
+    }
+
+    .speed-main {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .speed-number {
+      font-size: 38px;
+      font-weight: 900;
+      font-family: "Impact", "Arial Black", sans-serif;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    .speed-unit {
+      font-size: 12px;
+      font-weight: 800;
+      color: #94a3b8;
+    }
+
+    .gear-display {
+      font-size: 12px;
+      font-weight: 800;
+      color: #f59e0b;
+      letter-spacing: 1px;
+    }
+
+    .speed-bar-track {
+      width: 100%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+
+    .speed-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7, #38bdf8, #f59e0b, #ef4444);
+      border-radius: 3px;
+      transition: width 0.08s ease;
+    }
+
+    /* ==========================================
+       MOBILE TOUCH CONTROLS
+       ========================================== */
+    #touch-controls-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: block; /* Active on mobile / touch */
+    }
+
+    /* Left Joystick Zone */
+    #joystick-zone {
+      position: absolute;
+      bottom: 30px;
+      left: 30px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #joystick-thumb {
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle, #38bdf8, #0284c7);
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      transition: transform 0.04s ease-out;
+    }
+
+    /* Right Touch Camera Look Swipe Zone */
+    #touch-camera-zone {
+      position: absolute;
+      top: 80px;
+      right: 0;
+      width: 55%;
+      height: calc(100% - 180px);
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    /* Mobile Action Buttons Cluster (Bottom Right) */
+    .mobile-buttons-cluster {
+      position: absolute;
+      bottom: 24px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: flex-end;
+      pointer-events: auto;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .touch-btn {
+      width: 56px;
+      height: 56px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      transition: transform 0.1s ease, border-color 0.1s ease;
+    }
+
+    .touch-btn:active, .touch-btn.active {
+      transform: scale(0.92);
+      border-color: #38bdf8;
+      background: #0284c7;
+    }
+
+    .touch-btn.primary {
+      background: rgba(2, 132, 199, 0.85);
+      border-color: #38bdf8;
+      width: 64px;
+      height: 64px;
+      font-size: 15px;
+    }
+
+    .touch-btn.highlight {
+      animation: buttonPulse 1.2s infinite alternate;
+      border-color: #f59e0b;
+      background: #d97706;
+    }
+
+    @keyframes buttonPulse {
+      from { transform: scale(1); box-shadow: 0 0 10px #f59e0b; }
+      to { transform: scale(1.08); box-shadow: 0 0 20px #f59e0b; }
+    }
+
+    /* ==========================================
+       SETTINGS & OUTFITS MODAL
+       ========================================== */
+    .settings-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: 92%;
+      max-width: 480px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      color: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+
+    .settings-modal.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .close-modal-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #ffffff;
+      font-size: 20px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #f59e0b;
+      margin-bottom: 12px;
+    }
+
+    /* Volume Sliders */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .slider-label {
+      width: 120px;
+      color: #cbd5e1;
+    }
+
+    .slider-input {
+      flex: 1;
+      margin: 0 12px;
+      height: 6px;
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
+
+    .slider-val {
+      width: 40px;
+      text-align: right;
+      color: #38bdf8;
+      font-family: monospace;
+      font-weight: 700;
+    }
+
+    /* Outfits Grid */
+    .outfits-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+      margin-bottom: 16px;
+    }
+
+    .outfit-card {
+      background: rgba(30, 41, 59, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .outfit-card:hover {
+      background: rgba(51, 65, 85, 0.8);
+      border-color: rgba(56, 189, 248, 0.5);
+    }
+
+    .outfit-card.active {
+      border-color: #38bdf8;
+      background: rgba(2, 132, 199, 0.25);
+    }
+
+    .outfit-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .outfit-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      line-height: 1.3;
+    }
+
+    /* Responsive Queries for Phones & Tablets */
+    @media (max-width: 820px) {
+      .controls-card {
+        display: none; /* Hide keyboard cheat sheet on phone screens */
+      }
+
+      .radar-wrapper {
+        bottom: 160px;
+        left: 16px;
+        width: 120px;
+        height: 120px;
+      }
+
+      #joystick-zone {
+        bottom: 20px;
+        left: 20px;
+        width: 110px;
+        height: 110px;
+      }
+
+      .speedometer-container {
+        bottom: 160px;
+        right: 16px;
+        padding: 8px 14px;
+        min-width: 110px;
+      }
+
+      .speed-number {
+        font-size: 28px;
+      }
+
+      .top-toolbar {
+        top: 8px;
+        left: 8px;
+        padding: 6px 10px;
+        gap: 6px;
+      }
+
+      .preset-btn-group {
+        display: none; /* Keep toolbar clean on small screens */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="ui-container">
+    <!-- Top Left Quick Travel & Settings Toolbar -->
+    <div class="top-toolbar">
+      <div class="brand-pill">🌴 KOCHI 3D</div>
+
+      <select id="teleport-select" class="teleport-select">
+        <option value="" disabled selected>📍 Quick Travel...</option>
+        <option value="kundannoor">Kundannoor Junction</option>
+        <option value="brototype">Brototype Kochi Hub</option>
+        <option value="forum">Forum Kochi (Maradu)</option>
+        <option value="vyttila">Vyttila Flyover</option>
+        <option value="vyttila_hub">Vyttila Mobility Hub</option>
+        <option value="kaloor">JLN Stadium Kaloor</option>
+        <option value="lulu">LuLu Mall Edappally</option>
+      </select>
+
+      <div class="preset-btn-group">
+        <button class="preset-btn active" data-preset="goldenHour">4:30 PM Sun</button>
+        <button class="preset-btn" data-preset="noon">Noon</button>
+        <button class="preset-btn" data-preset="night">Night</button>
+        <button class="preset-btn" data-preset="monsoon">Monsoon</button>
+      </div>
+
+      <button id="radio-btn" class="toolbar-btn">📻 Radio</button>
+      <button id="settings-btn" class="toolbar-btn">⚙️ Settings & Style</button>
+    </div>
+
+    <!-- Top Right Controls Cheat Sheet (Desktop) -->
+    <div class="controls-card">
+      <h4>PC Controls</h4>
+      <div><span class="key-badge">W</span> <span class="key-badge">A</span> <span class="key-badge">S</span> <span class="key-badge">D</span> Move / Steer</div>
+      <div><span class="key-badge">Shift</span> Sprint</div>
+      <div><span class="key-badge">Space</span> Jump / Handbrake</div>
+      <div><span class="key-badge">E</span> Enter / Exit Vehicle</div>
+      <div><span class="key-badge">H</span> Horn  •  <span class="key-badge">R</span> Reset Car</div>
+      <div><span class="key-badge">C</span> Cam  •  <span class="key-badge">Mouse</span> Look</div>
+    </div>
+
+    <!-- Top Center Location Discovery Banner -->
+    <div id="location-banner" class="location-banner">
+      <div class="location-badge">DISCOVERED AREA</div>
+      <div id="location-title" class="location-title">KUNDANNOOR JUNCTION</div>
+      <div id="location-sub" class="location-sub">കുണ്ടന്നൂർ ജംഗ്ഷൻ  •  NH 66 / NH 85</div>
+    </div>
+
+    <!-- Radio Station Toast -->
+    <div id="radio-pill" class="radio-pill">
+      📻 <span id="radio-track-name">Radio Kochi - GTA Vibe</span>
+    </div>
+
+    <!-- Center Interaction Prompt -->
+    <div id="interaction-prompt" class="interaction-prompt">
+      [E] Enter Vehicle
+    </div>
+
+    <div class="center-reticle"></div>
+
+    <!-- Bottom Left Mini-Map Radar -->
+    <div class="radar-wrapper">
+      <canvas id="minimap-canvas"></canvas>
+    </div>
+
+    <!-- Bottom Right Speedometer -->
+    <div id="speedometer" class="speedometer-container">
+      <div class="speed-main">
+        <span id="speed-value" class="speed-number">0</span>
+        <span class="speed-unit">KM/H</span>
+      </div>
+      <div class="gear-display">GEAR <span id="gear-value">1</span></div>
+      <div class="speed-bar-track">
+        <div id="speed-bar-fill" class="speed-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- ==========================================
+         MOBILE TOUCH CONTROLS OVERLAY
+         ========================================== -->
+    <div id="touch-controls-overlay">
+      <!-- Virtual Joystick for movement/steering -->
+      <div id="joystick-zone">
+        <div id="joystick-thumb"></div>
+      </div>
+
+      <!-- Right Touch Area for Camera Look -->
+      <div id="touch-camera-zone"></div>
+
+      <!-- Virtual Buttons Cluster -->
+      <div class="mobile-buttons-cluster">
+        <div class="btn-row">
+          <button id="btn-camera" class="touch-btn">📷<br><span style="font-size:9px">CAM</span></button>
+          <button id="btn-horn" class="touch-btn">📢<br><span style="font-size:9px">HORN</span></button>
+        </div>
+        <div class="btn-row">
+          <button id="btn-sprint" class="touch-btn">⚡<br><span style="font-size:9px">RUN</span></button>
+          <button id="btn-jump" class="touch-btn">🦘<br><span style="font-size:9px">JUMP</span></button>
+          <button id="btn-enter-exit" class="touch-btn primary">🚗<br><span style="font-size:10px">ENTER</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==========================================
+         SETTINGS & AESTHETIC WARDROBE MODAL
+         ========================================== -->
+    <div id="settings-modal" class="settings-modal">
+      <div class="modal-header">
+        <div class="modal-title">⚙️ Audio & Character Customization</div>
+        <button id="close-settings-btn" class="close-modal-btn">✕</button>
+      </div>
+
+      <div class="section-title">🔊 Sound & GTA Music Controls</div>
+      <div class="slider-row">
+        <span class="slider-label">Master Volume</span>
+        <input type="range" id="slider-master-vol" class="slider-input" min="0" max="1" step="0.05" value="0.7">
+        <span id="val-master-vol" class="slider-val">70%</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">GTA Radio BGM</span>
+        <input type="range" id="slider-music-vol" class="slider-input" min="0" max="1" step="0.05" value="0.5">
+        <span id="val-music-vol" class="slider-val">50%</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">Action Sound SFX</span>
+        <input type="range" id="slider-sfx-vol" class="slider-input" min="0" max="1" step="0.05" value="0.8">
+        <span id="val-sfx-vol" class="slider-val">80%</span>
+      </div>
+
+      <div class="section-title" style="margin-top: 16px;">👕 Character Aesthetic Outfits (Franklin Clinton)</div>
+      <div class="outfits-grid">
+        <div class="outfit-card active" data-outfit="franklinClassic">
+          <div class="outfit-name">Franklin Classic</div>
+          <div class="outfit-desc">Navy buttoned workshirt, white undersleeves, blue jeans & watch</div>
+        </div>
+        <div class="outfit-card" data-outfit="kochiLinen">
+          <div class="outfit-name">Kochi Floral Linen</div>
+          <div class="outfit-desc">Emerald linen half-shirt, gold undersleeve & sand chinos</div>
+        </div>
+        <div class="outfit-card" data-outfit="blackLeather">
+          <div class="outfit-name">Street Biker</div>
+          <div class="outfit-desc">Midnight black jacket, charcoal undersleeve & black jeans</div>
+        </div>
+        <div class="outfit-card" data-outfit="kasavuMundu">
+          <div class="outfit-name">Kerala Kasavu</div>
+          <div class="outfit-desc">Silk black shirt & traditional Kasavu cream mundu</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
